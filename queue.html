@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css" />
+  </head>
+  <body>
+    <h1>{{ char.name }} ({{ char.ID }})</h1>
+    <img src="https://image.eveonline.com/Character/{{ char.ID }}_128.jpg"><br>
+    <table>
+        <tr><th>Skill</th><th>Level</th><th>End Date</th></tr>
+    {% for skill in skills %}
+        <tr><td>{{ skill.name }}</td><td>{{ skill.level }}</td><td>{{ skill.end }}</td></tr>
+    {% endfor %}
+    </table>
+    <a href="/">Back to main</a>
+  </body>
+</html>
+
