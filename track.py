@@ -1,4 +1,4 @@
-import cgi, datetime, urllib, wsgiref.handlers, os, urllib
+import cgi, datetime, urllib, wsgiref.handlers, os, urllib, time
 
 from google.appengine.ext import db, webapp
 from google.appengine.api import users
@@ -142,9 +142,20 @@ characterID: <input type="text" name="charID">
                     if item['id'] == id:
                         item['name'] = skill.name
 
+        if queue:
+            end = max(0, int(timegm(strptime(queue[-1]['end'], "%Y-%m-%d %H:%M:%S"))))
+            qlen = end - time.time()
+            if qlen > 24*60*60:
+                message = "Everything's ok"
+            else:
+                message = "The queue expires in %s. You can now add a skill to queue." % timeDiffToStr(qlen)
+        else:
+            message = "<font color='red'>The queue is empty!</font>"
+
         template_values = {
             'char': character,
             'skills': queue,
+            'message': message,
         }        
 
         path = os.path.join(os.path.dirname(__file__), 'queue.html')
@@ -156,6 +167,13 @@ application = webapp.WSGIApplication([
   ('/char', Char)
 ], debug=True)
 
+# handy stuff
+def timeDiffToStr(s):
+    h = s // (60*60)
+    s -= h * 60*60
+    m = s // 60
+    s -= m * 60
+    return "%dh, %dm, %ds" % (h, m, s)
 
 def main():
     run_wsgi_app(application)
