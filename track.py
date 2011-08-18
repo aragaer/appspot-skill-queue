@@ -161,8 +161,9 @@ characterID: <input type="text" name="charID">
         path = os.path.join(os.path.dirname(__file__), 'queue.html')
         self.response.out.write(template.render(path, template_values))
 
-        mail.send_mail(sender="aragaer@gmail.com",
-                        to=account.user,
+        if character.owner.email():
+            mail.send_mail(sender="aragaer@gmail.com",
+                        to=character.owner.email(),
                         subject="Skill Queue",
                         body=message)
 
