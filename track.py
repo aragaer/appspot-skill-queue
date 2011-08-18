@@ -1,7 +1,7 @@
 import cgi, datetime, urllib, wsgiref.handlers, os, urllib, time
 
 from google.appengine.ext import db, webapp
-from google.appengine.api import users
+from google.appengine.api import users, mail
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.api.urlfetch import fetch
 from xml.dom.minidom import parseString
@@ -160,6 +160,11 @@ characterID: <input type="text" name="charID">
 
         path = os.path.join(os.path.dirname(__file__), 'queue.html')
         self.response.out.write(template.render(path, template_values))
+
+        mail.send_mail(sender="aragaer@gmail.com",
+                        to=account.user,
+                        subject="Skill Queue",
+                        body=message)
 
 
 application = webapp.WSGIApplication([

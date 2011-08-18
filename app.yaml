@@ -1,4 +1,4 @@
-application: eve-skill-queue
+application: skill-queue
 version: 1
 runtime: python
 api_version: 1
