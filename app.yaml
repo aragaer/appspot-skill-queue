@@ -10,6 +10,14 @@ handlers:
 - url: /.*
   script: track.py
 
+- url: /tick/.*
+  script: track.py
+  login: admin
+
+- url: /admin/.*
+  script: $PYTHON_LIB/google/appengine/ext/admin
+  login: admin
+
 skip_files:
 - ^(.*/)?app\.yaml
 - ^(.*/)?app\.yml
