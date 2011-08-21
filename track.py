@@ -3,135 +3,14 @@ import cgi, datetime, urllib, wsgiref.handlers, os, logging
 from google.appengine.ext import db, webapp
 from google.appengine.api import users, mail
 from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.api.urlfetch import fetch
-from xml.dom.minidom import parseString
 
 from google.appengine.ext.webapp import template
 from google.appengine.api.app_identity import get_application_id
 
-EVE_URI = "https://api.eveonline.com"
-EVE_TEST_URI = "https://apitest.eveonline.com"
-
-#EVE_URI = EVE_TEST_URI
-
-API_PATHS = {
-    'CharName': '/eve/CharacterName.xml.aspx',
-    'SkillName': '/eve/CharacterName.xml.aspx',
-    'SkillQueue': '/char/SkillQueue.xml.aspx',
-}
+import account
+from tick import Tick
 
 SENDER="noreply@%s.appspotmail.com" % get_application_id()
-
-class Skill(db.Model):
-    ID = db.IntegerProperty(required=True)
-    name = db.StringProperty(required=True)
-
-def Skill_getNames(IDs):
-    res = {}
-    if not IDs:
-        return res
-    IDs = map(int, IDs)
-    for skill in Skill.gql("WHERE ID in :1", IDs):
-        if skill:
-            res[skill.ID] = skill.name
-
-    IDs_to_request = [str(ID) for ID in IDs if not ID in res]
-
-    if IDs_to_request:
-        data = fetch(EVE_URI+API_PATHS['SkillName'], method='POST', payload='IDs=%s' % ','.join(IDs_to_request))
-        doc = parseString(data.content)
-        for row in doc.getElementsByTagName('row'):
-            ID = int(row.getAttribute('characterID'))
-            name = row.getAttribute('name')
-            skill = Skill(ID=ID, name=name)
-            skill.put()
-            res[ID] = name
-    return res
-
-class Account(db.Model):
-    owner = db.UserProperty(auto_current_user_add=True)
-
-def Character_getByID(id):
-    id = int(id);
-    character = Character.gql("WHERE ID=:1", id).get()
-    if not character:
-        raise Exception("No such character")
-    if character.owner != users.get_current_user() and not users.is_current_user_admin():
-        raise Exception("Wrong owner")
-    return character
-
-class Character(db.Model):
-    acct = db.ReferenceProperty(Account)
-    apiKey = db.StringProperty()
-    name = db.StringProperty()
-    owner = db.UserProperty(auto_current_user_add=True)
-    ID = db.IntegerProperty()
-    queueEnd = db.DateTimeProperty()
-    cachedUntil = db.DateTimeProperty()
-    queue = db.StringListProperty()
-
-    def getQueue(self):
-        if self.cachedUntil and self.cachedUntil > datetime.datetime.utcnow():
-            return self.getQueueCached()
-        else:
-            return self.getQueueOnline()
-
-    def getQueueOnline(self):
-        args = urllib.urlencode({
-            'userID': self.acct.key().name(),
-            'apiKey': self.apiKey,
-            'characterID': self.ID
-        })
-        data = fetch(EVE_URI+API_PATHS['SkillQueue'], method='POST', payload=args)
-        doc = parseString(data.content)
-        queue = []
-        skills = {}
-        self.cachedUntil = parseEveDateTime(doc.getElementsByTagName('cachedUntil')[0].firstChild.data)
-        self.queue = []
-        for row in doc.getElementsByTagName('row'):
-            id = int(row.getAttribute('typeID'))
-            queue.append({
-                'level':row.getAttribute('level'),
-                'end':  row.getAttribute('endTime'),
-            })
-            last = queue[-1]
-            self.queue.append('|'.join([str(id), last['level'], last['end']]))
-            if id in skills:
-                skills[id].append(last)
-            else:
-                skills[id] = [last]
-
-        if queue:
-            self.queueEnd = parseEveDateTime(queue[-1]['end'])
-        else:
-            self.queueEnd = datetime.datetime.utcnow()
-
-        self.put()
-
-        for id, name in Skill_getNames(skills.keys()).items():
-            for rec in skills[id]:
-                rec['name'] = name
-
-        return queue
-
-    def getQueueCached(self):
-        skills = {}
-        queue = []
-        for line in self.queue:
-            rec = {}
-            (id, rec['level'], rec['end']) = line.split('|')
-            id = int(id)
-            queue.append(rec)
-            if id in skills:
-                skills[id].append(rec)
-            else:
-                skills[id] = [rec]
-
-        for id, name in Skill_getNames(skills.keys()).items():
-            for rec in skills[id]:
-                rec['name'] = name
-
-        return queue
 
 class MainPage(webapp.RequestHandler):
     def get(self):
@@ -144,7 +23,7 @@ class MainPage(webapp.RequestHandler):
             return
 
         self.response.out.write('<hr><ul>')
-        for char in Character.gql("WHERE owner=:1", users.get_current_user()):
+        for char in account.get_my_characters():
             self.response.out.write('<li><a href="/char?action=view&charID=%s">%s</a></li>' % (
                 char.ID, char.name))
         self.response.out.write('<li><a href="/char?action=add">Add another character</a></li></ul>')
@@ -179,107 +58,79 @@ characterID: <input type="text" name="charID">
 
     def add(self):
         charID = self.request.get('charID')
-
-        account = Account.get_or_insert(self.request.get('acctID'))
+        acctID = self.request.get('acctID')
 
         try:
-            Character_getByID(charID)
-            self.response.out.write("Specified character already exists.<hr>")
-        except:
-            character = Character(ID=int(charID), acct=account)
-            character.acct = account
-            character.apiKey = self.request.get('apiKey')
-            data = fetch(EVE_URI+API_PATHS['CharName'], method='POST', payload='ids=%s' % charID)
-            doc = parseString(data.content)
-            character.name = doc.getElementsByTagName('row')[0].getAttribute('name')
-            tick = Tick_registerCharacter(character)
-            character.put()
-            self.response.out.write("Successfully added character %s to tick %d<hr>" % (character.name, tick))
+            acct = account.try_add_account(int(acctID), self.request.get('apiKey'))
+            character = acct.add_character(int(charID))
+            self.response.out.write("Successfully added character %s<hr>" % character.name)
+        except Exception, exc:
+            msg = "Error adding/getting account %s: %s" % (acctID, exc)
+            logging.error(msg)
+            self.response.out.write('%s<br>' % msg)
 
         self.response.out.write('<a href="/">Back to main</a>')
 
     def view(self):
+        charID = self.request.get('charID')
         try:
-            character = Character_getByID(self.request.get('charID'))
+            character = account.get_character_by_id_secure(int(charID))
+
+            queue = character.getQueue()
+
+            acct = character.acct
+            qlen = acct.queueEnd - datetime.datetime.utcnow()
+            if acct.training.ID == character.ID:
+                if qlen.days > 0:
+                    message = None
+                elif qlen.days < 0:
+                    message = "<font color='red'>The queue is empty!</font>"
+                else:
+                    message = MESSAGES[23] % timeDiffToStr(qlen.seconds)
+            else:
+                acct.training.refreshQueue()
+                qlen = acct.queueEnd - datetime.datetime.utcnow()
+                if qlen.days < 0:
+                    message = "<font color='red'>The queue is empty!</font>"
+                else:
+                    message = "Currently training on this account: %s. The queue will expire in %dd, %s." % (
+                        character.name, qlen.days, timeDiffToStr(qlen.seconds))
+
+            template_values = {
+                'char': character,
+                'skills': queue,
+                'message': message
+            }
+
+            path = os.path.join(os.path.dirname(__file__), 'queue.html')
+            self.response.out.write(template.render(path, template_values))
         except Exception, exc:
-            self.response.out.write("Error: %s" % exc)
-            return
-
-        queue = character.getQueue()
-
-        qlen = character.queueEnd - datetime.datetime.utcnow()
-        if qlen.days > 0:
-            message = None
-        elif qlen.days < 0:
-            message = "<font color='red'>The queue is empty!</font>"
-        else:
-            message = MESSAGES[23] % timeDiffToStr(qlen.seconds)
-
-        template_values = {
-            'char': character,
-            'skills': queue,
-            'message': message,
-        }        
-
-        path = os.path.join(os.path.dirname(__file__), 'queue.html')
-        self.response.out.write(template.render(path, template_values))
-
-# in how many groups we'll split all characters
-# 60 is we check once per minute and each character is checked every hour
-TICKS_BETWEEN_CHECKS = 60
-
-class Tick(db.Model):
-    pos = db.IntegerProperty()
-    num = db.IntegerProperty()
-    chars = db.ListProperty(int)
-
-def Tick_registerCharacter(char):
-    usedTicks = Tick.all().count(TICKS_BETWEEN_CHECKS)
-    if usedTicks < TICKS_BETWEEN_CHECKS: # got some empty ticks
-        tick = Tick(pos=usedTicks, num = 0)
-    else:
-        tick = Tick.gql("order by num").get()
-    tick.chars.append(char.ID)
-    tick.num += 1
-    tick.put()
-    return tick.pos
+            msg = "Error viewing character %s: %s" % (charID, exc)
+            self.response.out.write('%s<br><a href="/">Back to main</a>' % msg)
+            logging.error(msg)
 
 class Checker(webapp.RequestHandler):
     def get(self):
-        ticknum = datetime.datetime.utcnow().minute
+        if self.request.get('ticknum'):
+            ticknum = int(self.request.get('ticknum'))
+        else:
+            ticknum = datetime.datetime.utcnow().minute
         tick = Tick.gql("WHERE pos = :1", ticknum).get()
         if not tick:
             return
-        for charID in tick.chars:
-            try:
-                char = Character_getByID(charID)
-            except Exception, exc:
-                logging.error("Character %s is in tick %d list but not available: %s" % (charID, ticknum, exc))
+        for acct in account.Account.get(tick.accts):
+            if not acct or not acct.owner.email(): # nothing we can do
                 continue
-            check(charID)
-
-def check(charID):
-    try:
-        character = Character_getByID(charID)
-    except:
-        return
-
-    if not character.owner.email(): # nothing we can do
-        return
-
-    qlen = character.queueEnd - datetime.datetime.utcnow()
-    hours = qlen.seconds // (60*60)
-    if qlen.days == 0 and MESSAGES[hours]:
-        mail.send_mail(sender=SENDER,
-                    to=character.owner.email(),
-                    subject="Skill Queue",
-                    body=MESSAGES[hours] % timeDiffToStr(qlen.seconds))
-    else:
-        mail.send_mail(sender=SENDER,
-                    to=character.owner.email(),
-                    subject="Skill Queue",
-                    body='Hourly check')
-
+            (training, qlen) = acct.check_queue()
+            qlen = acct.queueEnd - datetime.datetime.utcnow()
+            hours = qlen.seconds // (60*60)
+            if qlen.days == 0 and MESSAGES[hours]:
+                mail.send_mail(sender=SENDER,
+                            to=acct.owner.email(),
+                            subject="Skill Queue for %s" % training.name,
+                            body=MESSAGES[hours] % timeDiffToStr(qlen.seconds))
+            else:
+                logging.info("Hourly check for acct %d (%s is training at least %d days)" % (acct.ID, training.name, qlen.days))
 
 application = webapp.WSGIApplication([
   ('/', MainPage),

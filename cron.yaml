@@ -1,0 +1,4 @@
+cron:
+- description: Queue Check
+  url: /tick/
+  schedule: every 1 mins synchronized
