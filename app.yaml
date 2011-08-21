@@ -30,5 +30,6 @@ skip_files:
 - ^(.*/)?\..*
 - ^(.*/)?\..*\.swp$
 - ^\.gitmodules$
+- ^(.*/)?\.gitignore$
 - ^eveapi/apitest\.py$
 - ^(.*/)?\.git$
