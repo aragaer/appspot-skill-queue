@@ -96,7 +96,7 @@ class Character(db.Model):
             else:
                 skills[ID] = [last]
 
-        if last:
+        if res:
             self.acct.queueEnd = last['end']
             self.acct.training = self
             self.acct.put()

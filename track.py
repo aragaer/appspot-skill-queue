@@ -94,7 +94,7 @@ characterID: <input type="text" name="charID">
                     message = "<font color='red'>The queue is empty!</font>"
                 else:
                     message = "Currently training on this account: %s. The queue will expire in %dd, %s." % (
-                        character.name, qlen.days, timeDiffToStr(qlen.seconds))
+                        acct.training.name, qlen.days, timeDiffToStr(qlen.seconds))
 
             template_values = {
                 'char': character,
@@ -130,7 +130,8 @@ class Checker(webapp.RequestHandler):
                             subject="Skill Queue for %s" % training.name,
                             body=MESSAGES[hours] % timeDiffToStr(qlen.seconds))
             else:
-                logging.info("Hourly check for acct %d (%s is training at least %d days)" % (acct.ID, training.name, qlen.days))
+                logging.info("Hourly check for acct %d (%s is training at least %d days)" % (
+                        acct.ID, training.name, qlen.days))
 
 application = webapp.WSGIApplication([
   ('/', MainPage),
@@ -145,9 +146,6 @@ def timeDiffToStr(s):
     m = s // 60
     s %= 60
     return "%dh, %dm, %ds" % (h, m, s)
-
-def parseEveDateTime(value):
-    return datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
 
 def main():
     run_wsgi_app(application)
