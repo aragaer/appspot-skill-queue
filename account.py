@@ -34,8 +34,21 @@ class Account(db.Model):
 
     def check_queue(self):
         """Check the state of skill queue for this account."""
-        for char in Character.get(self.chars):
-            char.refreshQueue()
+        training = self.training
+        if training:        # check the one currently training first
+            training.refreshQueue()
+            if not self.training:                       # he is no longer training
+                for char in Character.get(self.chars):  # check the rest
+                    if char.ID != training.ID:
+                        char.refreshQueue()
+                        if self.training:               # this one is training
+                            break
+        else:               # check everyone
+            for char in Character.get(self.chars):
+                char.refreshQueue()
+                if self.training:
+                    break
+
         return (self.training, self.queueEnd)
 
 def acct_key(ID):
@@ -61,8 +74,10 @@ class Character(db.Model):
 
     def refreshQueue(self):
         """Don't care about results. Just refresh db entries."""
-        if self.cachedUntil and self.cachedUntil < datetime.datetime.utcnow():
+        if not self.cachedUntil or self.cachedUntil < datetime.datetime.utcnow():
             self.getQueueOnline()
+        else:
+            logging.info("Not refreshing queue for character %s since it is still cached" % self.name)
 
     def getQueue(self):
         if self.cachedUntil and self.cachedUntil > datetime.datetime.utcnow():
@@ -99,6 +114,10 @@ class Character(db.Model):
         if res:
             self.acct.queueEnd = last['end']
             self.acct.training = self
+            self.acct.put()
+        elif self.acct.training.ID == self.ID:
+            self.acct.training = None
+            self.acct.training = datetime.datetime.utcnow()
             self.acct.put()
 
         self.put()

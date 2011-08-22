@@ -121,8 +121,8 @@ class Checker(webapp.RequestHandler):
         for acct in account.Account.get(tick.accts):
             if not acct or not acct.owner.email(): # nothing we can do
                 continue
-            (training, qlen) = acct.check_queue()
-            qlen = acct.queueEnd - datetime.datetime.utcnow()
+            (training, qEnd) = acct.check_queue()
+            qlen = qEnd - datetime.datetime.utcnow()
             hours = qlen.seconds // (60*60)
             if qlen.days == 0 and MESSAGES[hours]:
                 mail.send_mail(sender=SENDER,
