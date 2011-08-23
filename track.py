@@ -29,7 +29,7 @@ class MainPage(webapp.RequestHandler):
         self.response.out.write('<li><a href="/char?action=add">Add another character</a></li></ul>')
 
 MESSAGES = [None]*24
-MESSAGES[0] = "Warning: Your skill queue will expire in %s which is less than 1 hour."
+MESSAGES[1] = "Warning: Your skill queue will expire in %s which is less than 2 hours."
 MESSAGES[11] = "Reminder: Your skill queue will expire in %s which is less than 12 hours."
 MESSAGES[23] = "Information: Your skill queue will expire in %s. You can now add a skill to your queue."
 
