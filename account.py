@@ -5,6 +5,7 @@ import tick
 import logging
 from google.appengine.api import users
 from google.appengine.ext import db
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 
 api = EVEAPIConnection()
 
@@ -75,9 +76,16 @@ class Character(db.Model):
     def refreshQueue(self):
         """Don't care about results. Just refresh db entries."""
         if not self.cachedUntil or self.cachedUntil < datetime.datetime.utcnow():
-            self.getQueueOnline()
+            while True:
+                try:
+                    self.getQueueOnline()
+                except DeadlineExceededError:
+                    continue
+                except CapabilityDisabledError:
+                    pass
+                break
         else:
-            logging.info("Not refreshing queue for character %s since it is still cached" % self.name)
+            logging.debug("Not refreshing queue for character %s since it is still cached" % self.name)
 
     def getQueue(self):
         if self.cachedUntil and self.cachedUntil > datetime.datetime.utcnow():

@@ -17,11 +17,11 @@ def skill_id(skill):
 def get_names(IDs):
     res = {}
     IDs = map(int, IDs) # make sure IDs are integers, not strings
-    logging.info("Looking up skill names for skills %s" % IDs)
+    logging.debug("Looking up skill names for skills %s" % IDs)
     for skill in Skill.get(map(skill_key, IDs)):
         if skill:
             res[skill.key().id()] = skill.name
-    logging.info("Found the following so far: %s" % IDs)
+    logging.debug("Found the following so far: %s" % IDs)
 
     IDs_to_request = ','.join([str(ID) for ID in IDs if not ID in res])
 
