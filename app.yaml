@@ -18,6 +18,9 @@ handlers:
   script: $PYTHON_LIB/google/appengine/ext/admin
   login: admin
 
+builtins:
+- deferred: on
+
 skip_files:
 - ^(.*/)?app\.yaml
 - ^(.*/)?app\.yml

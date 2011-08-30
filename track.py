@@ -1,6 +1,6 @@
 import cgi, datetime, urllib, wsgiref.handlers, os, logging
 
-from google.appengine.ext import db, webapp
+from google.appengine.ext import db, webapp, deferred
 from google.appengine.api import users, mail
 from google.appengine.ext.webapp.util import run_wsgi_app
 
@@ -119,19 +119,24 @@ class Checker(webapp.RequestHandler):
         if not tick:
             return
         for acct in account.Account.get(tick.accts):
-            if not acct or not acct.owner.email(): # nothing we can do
-                continue
-            (training, qEnd) = acct.check_queue()
-            qlen = qEnd - datetime.datetime.utcnow()
-            hours = qlen.seconds // (60*60)
-            if qlen.days == 0 and MESSAGES[hours]:
-                mail.send_mail(sender=SENDER,
-                            to=acct.owner.email(),
-                            subject="Skill Queue for %s" % training.name,
-                            body=MESSAGES[hours] % timeDiffToStr(qlen.seconds))
-            else:
-                logging.info("Hourly check for acct %d (%s is training at least %d days)" % (
-                        acct.ID, training.name, qlen.days))
+            if acct and acct.owner.email():
+                deferred.defer(check_and_notify, acct.ID)
+
+def check_and_notify(acctID):
+    acct = account.Account.get(acctID)
+    (training, qEnd) = acct.check_queue()
+    qlen = qEnd - datetime.datetime.utcnow()
+    hours = qlen.seconds // (60*60)
+    if qlen.days == 0 and MESSAGES[hours]:
+        mail.send_mail(sender=SENDER,
+                       to=acct.owner.email(),
+                       subject="Skill Queue for %s" % training.name,
+                       body=MESSAGES[hours] % timeDiffToStr(qlen.seconds))
+    elif training:
+        logging.info("Hourly check for acct %d (%s is training at least %d days)" % (
+                    acct.ID, training.name, qlen.days))
+    else:
+        logging.info("Hourly check for acct %d (queue empty)" % acct.ID)
 
 application = webapp.WSGIApplication([
   ('/', MainPage),
