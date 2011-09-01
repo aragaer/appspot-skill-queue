@@ -1,4 +1,4 @@
 [submodule "eveapi"]
 	path = eveapi
-	url = git@github.com:aragaer/pyeveapi.git
-        branch = forked
+	url = git@github.com:aragaer/eveapi_fork.git
+        branch = appspot
