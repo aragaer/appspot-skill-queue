@@ -5,7 +5,7 @@ import tick
 import logging
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, DeadlineExceededError
 
 api = EVEAPIConnection()
 
@@ -18,7 +18,7 @@ class Account(db.Model):
     training = db.ReferenceProperty()
     chars = db.ListProperty(db.Key)
     def auth(self):
-        return api.auth(userID=self.ID, apiKey=self.apiKey)
+        return api.auth(keyID=self.ID, vCode=self.apiKey)
 
     def add_character(self, charID):
         character = Character.get(char_key(charID))
