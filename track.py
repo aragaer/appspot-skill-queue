@@ -15,18 +15,15 @@ SENDER="noreply@%s.appspotmail.com" % get_application_id()
 class MainPage(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
+        template_values = {
+            'login_url':users.create_login_url(self.request.uri),
+        }
         if user:
-            self.response.out.write("Hello, %s " % user.nickname())
-            self.response.out.write('<a href="%s">logout</a>' % users.create_logout_url(self.request.uri))
-        else:
-            self.response.out.write('<a href="%s">login</a>' % users.create_login_url(self.request.uri))
-            return
+            template_values['name'] = user.nickname()
+            template_values['chars'] = account.get_my_characters()
 
-        self.response.out.write('<hr><ul>')
-        for char in account.get_my_characters():
-            self.response.out.write('<li><a href="/char?action=view&charID=%s">%s</a></li>' % (
-                char.ID, char.name))
-        self.response.out.write('<li><a href="/char?action=add">Add another character</a></li></ul>')
+        path = os.path.join(os.path.dirname(__file__), 'welcome.html')
+        self.response.out.write(template.render(path, template_values))
 
 MESSAGES = [None]*24
 MESSAGES[1] = "Warning: Your skill queue will expire in %s which is less than 2 hours."
@@ -40,36 +37,47 @@ class CharHandler(webapp.RequestHandler):
             return self.view()
         if action == 'add':
             return self.new()
+        else:
+            self.redirect('/')
 
     def post(self):
         action = self.request.get('action')
-        if action == 'do_add':
-            return self.add()
+        if action == 'add_key':
+            return self.add_key()
+        else:
+            self.redirect('/')
 
     def new(self):
-        if not users.get_current_user():
-            self.redirect(users.create_login_url(self.request.uri))
-        self.response.out.write('''<form action="/char" method="post">
-<input type="hidden" value="do_add" name="action">
-userID: <input type="text" name="acctID"><br>
-apiKey: <input type="text" name="apiKey"><br>
-characterID: <input type="text" name="charID">
-<input type="submit"> <a href="/">Cancel</a>''')
+        path = os.path.join(os.path.dirname(__file__), 'add.html')
+        self.response.out.write(template.render(path, {}))
 
-    def add(self):
-        charID = self.request.get('charID')
-        acctID = self.request.get('acctID')
+    def add_key(self):
+        keyID = self.request.get('keyID')
+        vCode = self.request.get('vCode')
 
+        template_values = {'chars': [], 'msg': []}
         try:
-            acct = account.try_add_account(int(acctID), self.request.get('apiKey'))
-            character = acct.add_character(int(charID))
-            self.response.out.write("Successfully added character %s<hr>" % character.name)
+            keyInfo = account.api.account.APIKeyInfo(keyID=keyID, vCode=vCode).key
+            if not keyInfo.accessMask & 0x40000:
+                raise Exception("Supplied key doesn't allow access to skill queue data.")
+            if keyInfo.accessMask ^ 0x40000:
+                template_values['msg'].append("The key you supplied allows access not just to skill queue.")
+
+            acct = account.try_add_account(int(keyID), self.request.get('vCode'))
+            for char in keyInfo.characters:
+                try:
+                    acct.add_character(char.characterID, char.characterName)
+                    template_values['chars'].append(char.characterName)
+                except Exception, exc:
+                    template_values['msg'].append("%s" % exc)
+                    logging.info("Adding character %s %d: %s" % (char.characterName, char.characterID, exc))
+            path = os.path.join(os.path.dirname(__file__), 'added.html')
+            self.response.out.write(template.render(path, template_values))
         except Exception, exc:
-            msg = "Error adding/getting account %s: %s" % (acctID, exc)
+            msg = "Error adding/getting account %s: %s" % (keyID, exc)
             logging.error(msg)
             self.response.out.write('%s<br>' % msg)
-
-        self.response.out.write('<a href="/">Back to main</a>')
+            self.response.out.write('<a href="/">Back to main</a>')
 
     def view(self):
         charID = self.request.get('charID')

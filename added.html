@@ -1,0 +1,19 @@
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css" />
+  </head>
+  <body>
+    <h3>Add characters</h3>
+    {% if chars %}
+        Succesfully added character{{ chars|length|pluralize }}
+        {% for char in chars %}
+            {{ char }}{% if not forloop.last %}{% ifequal forloop.revcounter 2 %} and {% else %}, {% endifequal %}{% endif %}{% endfor %}.
+    {% else %}
+        No characters added.
+    {% endif %}
+    {% if msg %}
+        <small><ul>{% for m in msg %}<li>{{ m }}</li>{% endfor %}</ul></small>
+    {% endif %}
+    <a href="/">Back to main</a>
+  </body>
+</html>

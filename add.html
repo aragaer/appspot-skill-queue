@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css" />
+  </head>
+  <script>
+    function switch_hint() {
+        document.getElementById('hint').hidden ^= 1
+    }
+  </script>
+  <body style="margin:0px">
+        <div style="position:absolute;top:0px;left:0px;" class="hint">
+        <h3>Add a new API key</h3>
+            <form action="/char" method="post">
+                <input type="hidden" value="add_key" name="action">
+                <table>
+                    <tr><td>keyID:</td><td><input type="text" name="keyID"></td></tr>
+                    <tr><td>vCode:</td><td><input type="text" name="vCode"></td></tr>
+                </table>
+                <input type="submit"> or <a href="/">Cancel</a>
+            </form>
+        </div>
+        <div style="position:absolute;top:0px;right:0px;" class="hint">
+            <a onclick="switch_hint()" href="#" title="Help">?</a>
+        </div>
+        <div style="position:absolute;top:0px;right:0px; max-width:400px" class="hint" id="hint">
+            <h3>What's that now?</h3>
+            <p>You might need to login first. Fear not, that is indeed Eve Online site. You can still <a target="key" href="https://support.eveonline.com/api/key/CreatePredefined/262144">open it in other window</a> if you have any doubts.</p>
+            <p>That's where you create an API key for use with the Skill Queue Tracker. The predefined access mask is already set. All you need is to enter a name for the key, then submit it (scroll to bottom).</p>
+            <p>If you already have a key that will work, you can use the 'Back to list' link at the bottom of the page.</p>
+            <p>Once at the key list, find the key you have created, then copy and paste ID and verification code to the fields in the top left corner.</p>
+            <a onclick="switch_hint()" href="#">Close</a>
+        </div>
+        <iframe src="https://support.eveonline.com/api/key/CreatePredefined/262144" style="width:100%; height:100%; border: none;">
+  </body>
+</html>
+

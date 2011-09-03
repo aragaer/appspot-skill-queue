@@ -2,3 +2,18 @@ body {
   font-family: Verdana, Helvetica, sans-serif;
   background-color: #DDDDDD;
 }
+
+p {
+  text-align:justify;
+}
+
+div.hint {
+  margin: 10px;
+  padding: 10px;
+  border: 3px double black;
+  background-color: rgba(221, 221, 221, 0.9);
+}
+
+div.hint:hover {
+  background-color: rgba(221, 221, 221, 1);
+}

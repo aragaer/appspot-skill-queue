@@ -7,6 +7,14 @@ handlers:
 - url: /stylesheets
   static_dir: stylesheets
 
+- url: /favicon\.ico
+  static_files: favicon.ico
+  upload: favicon\.ico
+
+- url: /char.*
+  script: track.py
+  login: required
+
 - url: /.*
   script: track.py
 

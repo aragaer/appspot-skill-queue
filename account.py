@@ -13,20 +13,23 @@ class Account(db.Model):
     """Each queue is bound to account. Thus we use accounts for checking."""
     ID = db.IntegerProperty(required=True)
     owner = db.UserProperty(auto_current_user_add=True)
-    apiKey = db.StringProperty()
+    vCode = db.StringProperty()
     queueEnd = db.DateTimeProperty()
     training = db.ReferenceProperty()
     chars = db.ListProperty(db.Key)
     def auth(self):
-        return api.auth(keyID=self.ID, vCode=self.apiKey)
+        return api.auth(keyID=self.ID, vCode=self.vCode)
 
-    def add_character(self, charID):
+    def add_character(self, charID, charName=None):
         character = Character.get(char_key(charID))
         if character: # Already registered
-            raise Exception("Character already registered")
+            raise Exception("Character %s is already registered" % character.name)
         character = Character(acct=self, key=char_key(charID), ID=charID)
-        for r in api.eve.CharacterName(ids=charID).characters: # single row here
-            character.name = r.name
+        if charName:
+            character.name = charName
+        else: # some artificial way of adding characters
+            for r in api.eve.CharacterName(ids=charID).characters: # single row here
+                character.name = r.name
         character.put()
         self.chars.append(char_key(charID))
         self.put()
@@ -55,13 +58,13 @@ class Account(db.Model):
 def acct_key(ID):
     return db.Key.from_path('Account', ID)
 
-def try_add_account(ID, apiKey):
-    account = Account.get(acct_key(ID))
+def try_add_account(keyID, vCode):
+    account = Account.get(acct_key(keyID))
     if account:
         if account.owner != users.get_current_user():
             raise Exception("Account created by another user")
     else:
-        account = Account(key=acct_key(ID), ID=ID, apiKey=apiKey)
+        account = Account(key=acct_key(keyID), ID=keyID, vCode=vCode)
         account.put()
         tick.register_key(account.key())
     return account
@@ -76,14 +79,12 @@ class Character(db.Model):
     def refreshQueue(self):
         """Don't care about results. Just refresh db entries."""
         if not self.cachedUntil or self.cachedUntil < datetime.datetime.utcnow():
-            while True:
-                try:
-                    self.getQueueOnline()
-                except DeadlineExceededError:
-                    continue
-                except CapabilityDisabledError:
-                    pass
-                break
+            try:
+                self.getQueueOnline()
+            except CapabilityDisabledError:
+                pass
+            except Exception, exc:
+                logging.error("Error refreshing queue for %s (%d): %s" % (self.name, self.ID, exc))
         else:
             logging.debug("Not refreshing queue for character %s since it is still cached" % self.name)
 

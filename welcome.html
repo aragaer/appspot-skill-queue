@@ -1,0 +1,40 @@
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css" />
+  </head>
+  <script>
+    function switch_hint() {
+        document.getElementById('hint').hidden ^= 1
+    }
+  </script>
+  <body>
+    <div style="position:absolute;top:0px;right:0px;" class="hint">
+        <a onclick="switch_hint()" href="#" title="Help">?</a>
+    </div>
+    <div class="hint" style="position:absolute;top:0px;right:0px;max-width:50%;" {% if chars %} hidden="true" {% endif %} id="hint">
+        <h2>What is this?</h2>
+        <p>This is an online tool for tracking skill queues of your characters.</p>
+        <h3>What does it do?</h3>
+        <p>It tracks the skill queue of your characters and sends you an e-mail notification once their skill queues are about to expire.</p>
+        <h3>How can I start using it?</h3>
+        <p>You need a google account to login (I'll add OpenID later) and you'll have to create an API key giving access to your characters' skill queues. Don't worry, it's easier than it sounds.</p>
+        <a onclick="switch_hint()" href="#">Close</a>
+    </div>
+    <h1>Skill Queue Tracker</h1>
+    <div>
+    {% if name %}
+        <h2>Welcome, {{ name }}</h2>
+        <a href="{{ login_url }}"><small>Not {{ name }}?</small></a>
+        <ul>
+            {% for char in chars %}
+                <li><a href="/char?action=view&charID={{ char.ID }}">{{ char.name }}</a></li>
+            {% endfor %}
+            <li><a href="/char?action=add">Add {% if chars %} another {% else %} a {% endif %} character</a></li>
+        </ul>
+    {% else %}
+        <a href="{{ login_url }}">Login</a>
+    {% endif %}
+    </div>
+  </body>
+</html>
+
