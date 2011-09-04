@@ -55,15 +55,16 @@ class CharHandler(webapp.RequestHandler):
         keyID = self.request.get('keyID')
         vCode = self.request.get('vCode')
 
-        template_values = {'chars': [], 'msg': []}
+        template_values = {'chars': [], 'msg': [], 'errors': []}
         try:
+            keyID = int(keyID)
             keyInfo = account.api.account.APIKeyInfo(keyID=keyID, vCode=vCode).key
             if not keyInfo.accessMask & 0x40000:
                 raise Exception("Supplied key doesn't allow access to skill queue data.")
             if keyInfo.accessMask ^ 0x40000:
                 template_values['msg'].append("The key you supplied allows access not just to skill queue.")
 
-            acct = account.try_add_account(int(keyID), self.request.get('vCode'))
+            acct = account.try_add_account(int(keyID), vCode)
             for char in keyInfo.characters:
                 try:
                     acct.add_character(char.characterID, char.characterName)
@@ -71,13 +72,13 @@ class CharHandler(webapp.RequestHandler):
                 except Exception, exc:
                     template_values['msg'].append("%s" % exc)
                     logging.info("Adding character %s %d: %s" % (char.characterName, char.characterID, exc))
-            path = os.path.join(os.path.dirname(__file__), 'added.html')
-            self.response.out.write(template.render(path, template_values))
+        except ValueError, exc:
+            template_values['errors'].append("KeyID must be a number.")
         except Exception, exc:
-            msg = "Error adding/getting account %s: %s" % (keyID, exc)
-            logging.error(msg)
-            self.response.out.write('%s<br>' % msg)
-            self.response.out.write('<a href="/">Back to main</a>')
+            template_values['errors'].append("%s" % exc)
+            logging.error("Error adding/getting account %s: %s" % (keyID, exc))
+        path = os.path.join(os.path.dirname(__file__), 'added.html')
+        self.response.out.write(template.render(path, template_values))
 
     def view(self):
         charID = self.request.get('charID')

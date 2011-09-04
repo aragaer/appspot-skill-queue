@@ -17,3 +17,7 @@ div.hint {
 div.hint:hover {
   background-color: rgba(221, 221, 221, 1);
 }
+
+li.error {
+  color: red;
+}

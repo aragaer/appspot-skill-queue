@@ -62,11 +62,12 @@ def try_add_account(keyID, vCode):
     account = Account.get(acct_key(keyID))
     if account:
         if account.owner != users.get_current_user():
-            raise Exception("Account created by another user")
-    else:
-        account = Account(key=acct_key(keyID), ID=keyID, vCode=vCode)
-        account.put()
-        tick.register_key(account.key())
+            raise Exception("Key created by another user")
+        else:
+            raise Exception("Key already registered")
+    account = Account(key=acct_key(keyID), ID=keyID, vCode=vCode)
+    account.put()
+    tick.register_key(account.key())
     return account
 
 class Character(db.Model):
