@@ -26,9 +26,9 @@ def get_names(IDs):
     IDs_to_request = ','.join([str(ID) for ID in IDs if not ID in res])
 
     if IDs_to_request:
-        for s in api.eve.CharacterName(ids=IDs_to_request).characters:
-            ID = s.characterID
-            name = s.name
+        for s in api.eve.TypeName(ids=IDs_to_request).types:
+            ID = s.typeID
+            name = s.typeName
             skill = Skill(key=skill_key(ID), name=name)
             skill.put()
             res[ID] = name
