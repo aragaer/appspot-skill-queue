@@ -131,6 +131,8 @@ class Checker(webapp.RequestHandler):
             if not acct or not acct.owner.email(): # nothing we can do
                 continue
             (training, qEnd) = acct.check_queue()
+            if not qEnd: # too late
+                continue
             qlen = qEnd - datetime.datetime.utcnow()
             hours = qlen.seconds // (60*60)
             if qlen.days == 0 and MESSAGES[hours]:

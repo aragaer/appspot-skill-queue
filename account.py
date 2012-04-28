@@ -3,6 +3,7 @@ import datetime
 import skill
 import tick
 import logging
+import traceback
 from google.appengine.api import users
 from google.appengine.ext import db
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, DeadlineExceededError
@@ -85,7 +86,8 @@ class Character(db.Model):
             except CapabilityDisabledError:
                 pass
             except Exception, exc:
-                logging.error("Error refreshing queue for %s (%d): %s" % (self.name, self.ID, exc))
+                logging.error("Error refreshing queue for %s (%d): %s\n%s" %
+                        (self.name, self.ID, exc, traceback.format_exc()))
         else:
             logging.debug("Not refreshing queue for character %s since it is still cached" % self.name)
 
@@ -127,7 +129,7 @@ class Character(db.Model):
             self.acct.put()
         elif self.acct.training.ID == self.ID:
             self.acct.training = None
-            self.acct.training = datetime.datetime.utcnow()
+            self.acct.queueEnd = datetime.datetime.utcnow()
             self.acct.put()
 
         self.put()
